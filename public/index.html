@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Minecraft Bot Panel</title>
+</head>
+<body>
+  <h2>Minecraft Bot Control Panel</h2>
+  <form id="botForm">
+    <input name="host" placeholder="Server IP" required>
+    <input name="port" type="number" placeholder="Port" required>
+    <input name="version" placeholder="Version" required>
+
+    <label><input type="checkbox" id="customNamesToggle"> Use custom usernames</label><br>
+    <div id="generatedMode">
+      <input name="username" placeholder="Username Prefix">
+      <input name="count" type="number" placeholder="Number of Bots">
+    </div>
+    <div id="customNamesBox" style="display: none;">
+      <textarea name="usernames" rows="4" cols="30" placeholder="Enter one username per line"></textarea>
+    </div>
+
+    <button type="submit">Start Bots</button>
+  </form>
+
+  <hr>
+
+  <select id="targetBot">
+    <option value="all">All Bots</option>
+  </select>
+  <input id="chatInput" placeholder="Send chat...">
+  <button onclick="sendChat()">Send</button>
+
+  <script>
+    const form = document.getElementById("botForm");
+    const toggle = document.getElementById("customNamesToggle");
+    const genMode = document.getElementById("generatedMode");
+    const customBox = document.getElementById("customNamesBox");
+    const targetBotSelect = document.getElementById("targetBot");
+
+    toggle.onchange = () => {
+      if (toggle.checked) {
+        genMode.style.display = "none";
+        customBox.style.display = "block";
+      } else {
+        genMode.style.display = "block";
+        customBox.style.display = "none";
+      }
+    };
+
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form));
+      if (toggle.checked) {
+        data.usernames = data.usernames.split('\n').map(u => u.trim()).filter(u => u);
+      } else {
+        data.count = parseInt(data.count);
+      }
+      await fetch('/api/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      updateBotList();
+    };
+
+    async function sendChat() {
+      const message = document.getElementById("chatInput").value;
+      const target = targetBotSelect.value;
+      await fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ message, target })
+      });
+      document.getElementById("chatInput").value = "";
+    }
+
+    async function updateBotList() {
+      const res = await fetch('/api/bots');
+      const bots = await res.json();
+      targetBotSelect.innerHTML = '<option value="all">All Bots</option>' +
+        bots.map(bot => `<option value="${bot}">${bot}</option>`).join('');
+    }
+
+    setInterval(updateBotList, 2000);
+  </script>
+</body>
+</html>
